@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User
+from .models import User, HandymanProfile, JobRequest, Review, Payment, JobAd, SMSLog, Admin
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 class UserSerializer(serializers.ModelSerializer):
@@ -25,7 +25,6 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
         token = super().get_token(user)
-        # Add custom claims to the token payload
         token['email'] = user.email
         token['role'] = user.role
         token['full_name'] = user.full_name
@@ -33,7 +32,6 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
     def validate(self, attrs):
         data = super().validate(attrs)
-        # Add user details to the response
         data['user'] = {
             'user_id': self.user.user_id,
             'email': self.user.email,
@@ -43,3 +41,52 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             'location': self.user.location
         }
         return data
+
+class HandymanProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HandymanProfile
+        fields = ['handyman', 'category', 'experience_years', 'bio', 'rating', 'jobs_completed', 'is_verified', 'subscription_plan']
+        read_only_fields = ['handyman', 'rating', 'jobs_completed', 'is_verified']
+
+class JobRequestSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = JobRequest
+        fields = ['job_id', 'client', 'handyman', 'category', 'job_description', 'job_location', 'preferred_date', 'status', 'created_at', 'updated_at']
+        read_only_fields = ['job_id', 'client', 'created_at', 'updated_at']
+
+class ReviewSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Review
+        fields = ['review_id', 'job', 'client', 'handyman', 'rating', 'comment', 'created_at']
+        read_only_fields = ['review_id', 'client', 'handyman', 'created_at']
+
+class PaymentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Payment
+        fields = ['payment_id', 'user', 'amount', 'purpose', 'reference_code', 'payment_method', 'status', 'created_at']
+        read_only_fields = ['payment_id', 'user', 'created_at']
+
+class JobAdSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = JobAd
+        fields = ['ad_id', 'handyman', 'title', 'ad_description', 'image_url', 'is_active', 'start_date', 'end_date']
+        read_only_fields = ['ad_id', 'handyman']
+
+class SMSLogSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SMSLog
+        fields = ['sms_id', 'user', 'message', 'phone', 'status', 'sent_at']
+        read_only_fields = ['sms_id', 'user', 'sent_at']
+
+class AdminSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, required=True)
+
+    class Meta:
+        model = Admin
+        fields = ['admin_id', 'username', 'password', 'email']
+        read_only_fields = ['admin_id']
+
+    def create(self, validated_data):
+        from django.contrib.auth.hashers import make_password
+        validated_data['password_hash'] = make_password(validated_data.pop('password'))
+        return Admin.objects.create(**validated_data)

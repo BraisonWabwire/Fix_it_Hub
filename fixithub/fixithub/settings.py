@@ -145,6 +145,9 @@ SIMPLE_JWT = {
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
     'AUTH_HEADER_TYPES': ('Bearer',),
+    'USER_ID_FIELD': 'user_id',  # Add this to match User model's primary key
+    'USER_ID_CLAIM': 'user_id',  # Add this for consistency in token payload
 }
 
 AUTH_USER_MODEL = 'core.User'
+

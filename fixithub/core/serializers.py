@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import User
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 class UserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True)
@@ -19,3 +20,26 @@ class UserSerializer(serializers.ModelSerializer):
             location=validated_data.get('location', '')
         )
         return user
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        # Add custom claims to the token payload
+        token['email'] = user.email
+        token['role'] = user.role
+        token['full_name'] = user.full_name
+        return token
+
+    def validate(self, attrs):
+        data = super().validate(attrs)
+        # Add user details to the response
+        data['user'] = {
+            'user_id': self.user.user_id,
+            'email': self.user.email,
+            'role': self.user.role,
+            'full_name': self.user.full_name,
+            'phone': self.user.phone,
+            'location': self.user.location
+        }
+        return data

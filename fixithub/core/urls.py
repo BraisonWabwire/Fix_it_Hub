@@ -1,8 +1,6 @@
-from django.urls import path, include
-from rest_framework.routers import DefaultRouter
-
-router = DefaultRouter()
+from django.urls import path
+from core.views import TestAuthView
 
 urlpatterns = [
-    path('', include(router.urls)),
+    path('test-auth/', TestAuthView.as_view(), name='test-auth'),
 ]

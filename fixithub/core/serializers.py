@@ -3,12 +3,16 @@ from .models import User, HandymanProfile, JobRequest, Review, Payment, JobAd, S
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 class UserSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, required=True)
+    password = serializers.CharField(write_only=True, required=False)
 
     class Meta:
         model = User
-        fields = ['user_id', 'full_name', 'email', 'phone', 'password', 'role', 'location']
+        fields = ['user_id', 'full_name', 'email', 'phone', 'password', 'role', 'location', 'is_active']
         read_only_fields = ['user_id', 'created_at']
+        extra_kwargs = {
+            'role': {'read_only': True},  # Clients can't change role
+            'is_active': {'read_only': True}  # Clients can't change is_active
+        }
 
     def create(self, validated_data):
         user = User.objects.create_user(
@@ -20,6 +24,25 @@ class UserSerializer(serializers.ModelSerializer):
             location=validated_data.get('location', '')
         )
         return user
+
+    def update(self, instance, validated_data):
+        password = validated_data.pop('password', None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        if password:
+            instance.set_password(password)
+        instance.save()
+        return instance
+
+class AdminUserSerializer(UserSerializer):
+    class Meta(UserSerializer.Meta):
+        extra_kwargs = {
+            'password': {'write_only': True, 'required': False}
+        }
+
+    def update(self, instance, validated_data):
+        # Admins can update all fields, including role and is_active
+        return super().update(instance, validated_data)
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod

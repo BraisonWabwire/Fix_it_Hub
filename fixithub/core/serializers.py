@@ -1,26 +1,33 @@
 from rest_framework import serializers
 from .models import User, HandymanProfile, JobRequest, Review, Payment, JobAd, SMSLog, Admin
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+import logging
+
+logger = logging.getLogger(__name__)
 
 class UserSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, required=False)
+    password = serializers.CharField(write_only=True, required=True)
+    role = serializers.ChoiceField(choices=[('client', 'Client'), ('handyman', 'Handyman')], required=True)
 
     class Meta:
         model = User
         fields = ['user_id', 'full_name', 'email', 'phone', 'password', 'role', 'location', 'is_active']
-        read_only_fields = ['user_id', 'created_at']
-        extra_kwargs = {
-            'role': {'read_only': True},  # Clients can't change role
-            'is_active': {'read_only': True}  # Clients can't change is_active
-        }
+        read_only_fields = ['user_id', 'is_active', 'created_at']
+
+    def validate_role(self, value):
+        if value not in ['client', 'handyman']:
+            logger.error(f"Invalid role attempted: {value}")
+            raise serializers.ValidationError("Role must be 'client' or 'handyman'.")
+        return value
 
     def create(self, validated_data):
+        logger.info(f"Creating user with email: {validated_data['email']}")
         user = User.objects.create_user(
             email=validated_data['email'],
             full_name=validated_data['full_name'],
             phone=validated_data['phone'],
             password=validated_data['password'],
-            role=validated_data.get('role', 'client'),
+            role=validated_data['role'],
             location=validated_data.get('location', '')
         )
         return user
@@ -35,13 +42,18 @@ class UserSerializer(serializers.ModelSerializer):
         return instance
 
 class AdminUserSerializer(UserSerializer):
+    password = serializers.CharField(write_only=True, required=True)
+    role = serializers.CharField(default='admin', read_only=True)
+
     class Meta(UserSerializer.Meta):
-        extra_kwargs = {
-            'password': {'write_only': True, 'required': False}
-        }
+        fields = ['user_id', 'full_name', 'email', 'phone', 'password', 'role', 'location', 'is_active']
+        read_only_fields = ['user_id', 'is_active', 'created_at', 'role']
+
+    def create(self, validated_data):
+        validated_data['role'] = 'admin'
+        return super().create(validated_data)
 
     def update(self, instance, validated_data):
-        # Admins can update all fields, including role and is_active
         return super().update(instance, validated_data)
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -66,9 +78,14 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         return data
 
 class HandymanProfileSerializer(serializers.ModelSerializer):
+    handyman = UserSerializer(read_only=True)  # Include user details
+
     class Meta:
         model = HandymanProfile
-        fields = ['handyman', 'category', 'experience_years', 'bio', 'rating', 'jobs_completed', 'is_verified', 'subscription_plan']
+        fields = [
+            'handyman', 'category', 'experience_years', 'bio',
+            'rating', 'jobs_completed', 'is_verified', 'subscription_plan'
+        ]
         read_only_fields = ['handyman', 'rating', 'jobs_completed', 'is_verified']
 
 class JobRequestSerializer(serializers.ModelSerializer):

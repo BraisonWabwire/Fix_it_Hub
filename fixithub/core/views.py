@@ -151,8 +151,10 @@ class HandymanProfileView(APIView):
                 return Response({"detail": "Profile not found"}, status=status.HTTP_404_NOT_FOUND)
             serializer = HandymanProfileSerializer(profile)
             return Response(serializer.data)
-        return Response(HandymanProfileSerializer(HandymanProfile.objects.all(), many=True).data)
-
+        profiles = HandymanProfile.objects.all()  # Return all profiles for clients
+        serializer = HandymanProfileSerializer(profiles, many=True)
+        return Response(serializer.data)
+    
     def post(self, request):
         if request.user.role != 'handyman':
             logger.error(f"Profile creation attempt by non-handyman: {request.user.email}")
